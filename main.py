@@ -45,23 +45,26 @@ device = cfg["device"]
 n.float().to(device)
 
 j = 0
+start_ep = 0
 for epoch in range(cfg["epochs"]):
     n.train()
     start = time.time()
     for i, (X, y_t) in enumerate(dl_train):
+        print("load:", time.time() - start_ep)
         opt.zero_grad()
-        y_out = n(X.float().to(device))
-        y_t = y_t.to(device)
+        y_out = n(X.float().to(device)).to("cpu")
+        y_t = y_t.float()
         tot_loss = None
         for l in cfg["losses"]:
-            y_l = l["pre_proc"](y_out)
-            y_t_l = l["pre_proc"](y_t)
+            y_l = l["pre_proc_out"](y_out)
+            y_t_l = l["pre_proc_y"](y_t)
             loss = l["l_func"](y_l, y_t_l)*l["weight"]
             writer.add_scalar("Loss/{}".format(l["name"]), loss, epoch*j + i)
             if not tot_loss: tot_loss=loss
             else: tot_loss += loss
         tot_loss.backward()
         opt.step()
+        start_ep = time.time()
     j = i
     print("Steps:", j)
     print("Time for an epoch:", time.time() - start)
