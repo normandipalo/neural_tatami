@@ -21,8 +21,8 @@ net_func = nets[cfg["model"]]
 data_obj, data_len = datas[cfg["data"]]["data_obj"], datas[cfg["data"]]["len"]
 train_from, train_to = 0, int(data_len*(1 - cfg["validation_split"]))
 
-d_train = data_obj(cfg["data_folder"], train_from, train_to)
-d_val = data_obj(cfg["data_folder"], train_to, data_len)
+d_train = data_obj(cfg["data_folder"], cfg["y_path"], train_from, train_to)
+d_val = data_obj(cfg["data_folder"], cfg["y_path"], train_to, data_len)
 
 dl_train = DataLoader(d_train, batch_size=cfg["batch_size"],
                         shuffle=True, num_workers=1)
@@ -62,3 +62,4 @@ for epoch in range(cfg["epochs"]):
         opt.step()
     j = i
     print("Steps:", j)
+    print("Time for an epoch:", time.time() - start)

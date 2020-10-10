@@ -8,14 +8,14 @@ from PIL import Image
 from hyper import cfg
 
 class ImagesData(Dataset):
-  def __init__(self, folder, fr, to, aug_fun_x = None, aug_fun_y = None):
+  def __init__(self, folder, y_path, fr, to, aug_fun_x = None, aug_fun_y = None):
     self.folder = folder
     self.mean = np.zeros((1,64,64))
     self.std = np.ones((1,64,64))
     self.y_mean = np.zeros((4))
     self.y_std = np.ones((4))
     self.fr, self.to = fr, to
-    self.y = np.load(self.folder + "vel_optimal_action_in_eef_array.npy")
+    self.y = np.load(y_path)
     self.aug_fun_x = aug_fun_x
     self.aug_fun_y = aug_fun_y
 
@@ -37,14 +37,14 @@ class ImagesData(Dataset):
 
 
 class IRData(Dataset):
-  def __init__(self, folder, fr, to, aug_fun_x = None, aug_fun_y = None):
+  def __init__(self, folder, y_path, fr, to, aug_fun_x = None, aug_fun_y = None):
     self.folder = folder
     self.mean = np.zeros((1,64,64))
     self.std = np.ones((1,64,64))
     self.y_mean = np.zeros((4))
     self.y_std = np.ones((4))
     self.fr, self.to = fr, to
-    self.y = np.load(self.folder + "vel_optimal_action_in_eef_array.npy")
+    self.y = np.load(y_path)
     self.aug_fun_x = aug_fun_x
     self.aug_fun_y = aug_fun_y
 
