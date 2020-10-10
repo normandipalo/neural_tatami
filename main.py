@@ -6,6 +6,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 from torch.utils.tensorboard import SummaryWriter
+import torch.optim.lr_scheduler as lr_sch
 
 import torch_optimizer as optim
 
@@ -25,10 +26,10 @@ d_train = data_obj(cfg["data_folder"], cfg["y_path"], train_from, train_to)
 d_val = data_obj(cfg["data_folder"], cfg["y_path"], train_to, data_len)
 
 dl_train = DataLoader(d_train, batch_size=cfg["batch_size"],
-                        shuffle=True, num_workers=1)
+                        shuffle=True, num_workers=4)
 
 dl_val = DataLoader(d_val, batch_size=cfg["batch_size"],
-                        shuffle=False, num_workers=1)
+                        shuffle=False, num_workers=4)
 
 n = net_func(in_dim = datas[cfg["data"]]["in_dim"], in_chans = datas[cfg["data"]]["in_chans"], **model_hp)
 
@@ -38,9 +39,10 @@ params = sum([np.prod(p.size()) for p in model_parameters])
 print("Model parameters:", params)
 
 opt = cfg["optimizer"](n.parameters(), lr = 1e-3)
+scheduler = lr_sch.StepLR(opt, step_size=cfg["sch_step"], gamma=cfg["sch_gamma"])
 
 device = cfg["device"]
-n.double().to(device)
+n.float().to(device)
 
 j = 0
 for epoch in range(cfg["epochs"]):
@@ -48,7 +50,7 @@ for epoch in range(cfg["epochs"]):
     start = time.time()
     for i, (X, y_t) in enumerate(dl_train):
         opt.zero_grad()
-        y_out = n(X.double().to(device))
+        y_out = n(X.float().to(device))
         y_t = y_t.to(device)
         tot_loss = None
         for l in cfg["losses"]:
@@ -63,3 +65,12 @@ for epoch in range(cfg["epochs"]):
     j = i
     print("Steps:", j)
     print("Time for an epoch:", time.time() - start)
+    scheduler.step()
+
+    with torch.no_grad():
+      n.eval()
+      val_loss = 0
+      cos_losses = 0
+      for k, (X, y_t) in enumerate(dl_val):
+          cos_losses += cos_loss(y_out.float().cpu()[:,:3], y_t.float().cpu()[:,:3])
+      writer.add_scalar("Val_Loss/cos", cos_losses/k, epoch)

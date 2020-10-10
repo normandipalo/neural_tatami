@@ -24,9 +24,9 @@ class ImagesData(Dataset):
 
   def __getitem__(self, i):
     i += self.fr
-    a = Image.open(self.folder + "{}.png".format(i))
-    a = np.asarray(a)
-    a = (np.asarray(Image.fromarray(a).resize((64,64)), dtype = np.float32))/255
+    a = Image.open(self.folder + "{}.png".format(i)).resize((64,64))
+    a = np.asarray(a, dtype = np.float32)
+    a = (a)/255
     y = self.y[i]
     if self.aug_fun_x:
         a = self.aug_fun(a)
