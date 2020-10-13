@@ -45,4 +45,23 @@ class CNNet(nn.Module):
     x = self.denses[1](x)
     return x
 
-nets = {"cnn" : CNNet}
+class FCNet(nn.Module):
+    def __init__(self, in_dim = 32, in_chans = None, layer_dims = [128, 64, 4], activation = "selu", drop_p = 0.1):
+        super().__init__()
+        self.layer_dims = [in_dim] + layer_dims
+        self.denses = nn.ModuleList([nn.Linear(in_features = self.layer_dims[i], out_features = self.layer_dims[i+1]) for i in range(len(layer_dims))])
+        self.bns = nn.ModuleList([nn.BatchNorm1d(num_features= self.layer_dims[i + 1]) for i in range(len(layer_dims) - 1)])
+        self.act = activation_func(activation)
+        self.drop = nn.Dropout(p=drop_p)
+
+    def forward(self, x):
+        for i, l in enumerate(self.denses):
+            x = l(x)
+            if not i == len(self.denses) - 1:
+                x = self.bns[i](x)
+            x = self.act(x)
+            if not i == len(self.denses) - 1:
+                x = self.drop(x)
+        return x
+
+nets = {"cnn" : CNNet, "fcn" : FCNet}

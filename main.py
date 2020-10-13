@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import time
+import hashlib
 
 import torch
 import torch.nn as nn
@@ -10,13 +11,13 @@ import torch.optim.lr_scheduler as lr_sch
 
 import torch_optimizer as optim
 
-from hyper import cfg, model_hp
+from hyper import cfg, cos_loss
 from models import *
 from data import *
+from utils import *
 
-writer = SummaryWriter()
 
-
+model_hp = cfg["model_hp"]
 net_func = nets[cfg["model"]]
 
 data_obj, data_len = datas[cfg["data"]]["data_obj"], datas[cfg["data"]]["len"]
@@ -26,10 +27,10 @@ d_train = data_obj(cfg["data_folder"], cfg["y_path"], train_from, train_to)
 d_val = data_obj(cfg["data_folder"], cfg["y_path"], train_to, data_len)
 
 dl_train = DataLoader(d_train, batch_size=cfg["batch_size"],
-                        shuffle=True, num_workers=4)
+                        shuffle=True, num_workers=2)
 
 dl_val = DataLoader(d_val, batch_size=cfg["batch_size"],
-                        shuffle=False, num_workers=4)
+                        shuffle=False, num_workers=2)
 
 n = net_func(in_dim = datas[cfg["data"]]["in_dim"], in_chans = datas[cfg["data"]]["in_chans"], **model_hp)
 
@@ -38,11 +39,14 @@ params = sum([np.prod(p.size()) for p in model_parameters])
 
 print("Model parameters:", params)
 
-opt = cfg["optimizer"](n.parameters(), lr = 1e-3)
+opt = cfg["optimizer"](n.parameters(), lr = cfg["lr"])
 scheduler = lr_sch.StepLR(opt, step_size=cfg["sch_step"], gamma=cfg["sch_gamma"])
 
 device = cfg["device"]
 n.float().to(device)
+
+hash = store_hp(cfg)
+writer = SummaryWriter("runs/pars_" + str(params) + "_model_" + cfg["model"] + "_data_" + cfg["data"] + "_" + str(hash))
 
 j = 0
 start_ep = 0
@@ -50,7 +54,6 @@ for epoch in range(cfg["epochs"]):
     n.train()
     start = time.time()
     for i, (X, y_t) in enumerate(dl_train):
-        print("load:", time.time() - start_ep)
         opt.zero_grad()
         y_out = n(X.float().to(device)).to("cpu")
         y_t = y_t.float()
@@ -64,16 +67,18 @@ for epoch in range(cfg["epochs"]):
             else: tot_loss += loss
         tot_loss.backward()
         opt.step()
-        start_ep = time.time()
     j = i
     print("Steps:", j)
     print("Time for an epoch:", time.time() - start)
     scheduler.step()
+    lr = scheduler.get_lr()
+    writer.add_scalar("Stats/Lr", lr[0], epoch*j + i)
 
     with torch.no_grad():
       n.eval()
       val_loss = 0
       cos_losses = 0
       for k, (X, y_t) in enumerate(dl_val):
+          y_out = n(X.cuda())
           cos_losses += cos_loss(y_out.float().cpu()[:,:3], y_t.float().cpu()[:,:3])
       writer.add_scalar("Val_Loss/cos", cos_losses/k, epoch)
